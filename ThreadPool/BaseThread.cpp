@@ -1,0 +1,168 @@
+#include "BaseThread.h"
+#include <iostream>
+
+namespace Tool
+{
+    
+    BaseThread::BaseThread(SleepCondition sleepCondition/* = nullptr*/, bool autoCreate/* = true*/)
+        : m_pThread(nullptr)
+        , m_bInited(false)
+        , m_pSleepCondition(sleepCondition)
+        , m_oIsActive(false)
+        , m_bIsTerminate(false)
+        , m_bReadyTerminate(false)
+    {
+        if (autoCreate)
+        {
+            m_pThread = make_shared<std::thread>(&BaseThread::innerThreadFunc, this); //new std::thread(&BaseThread::innerThreadFunc, this);
+            m_pThread->detach();    // detach之后线程变为"非joinable"
+            m_uThreadId = m_pThread->get_id();
+        }
+    }
+    
+    BaseThread::~BaseThread()
+    {
+        std::cout<<"=============~BaseThread============"<<endl;
+        terminateThread();
+    }
+    
+    void BaseThread::weekupThreadOnce()
+    {
+        m_oIsActive.operateVariable([](bool& active)->void
+        {
+            active = true;
+        });
+        m_oSleepCondition.notify_one();
+    }
+
+    void BaseThread::terminateThread()
+    {
+         // 去销毁一个仍然可以“joinable”的C++线程对象会被认为是一种错误。为了销毁一个C++线程对象，约么join()函数需要被调用（并结束），要么detach()函数被调用。如果一个C++线程对象当销毁时仍然可以被join，异常会被抛出。
+        m_bReadyTerminate = true;
+        // 等待线程执行完成
+        while(getIsActive());
+        if (!m_bIsTerminate)
+        {
+            m_oTasks.operateVariable([](std::vector<Task>& tasks)->void
+            {
+                tasks.clear();
+            });
+            weekupThreadOnce();
+        }
+    }
+    
+    bool BaseThread::getIsActive()
+    {
+        bool isActive;
+        m_oIsActive.operateVariable([&](bool& active)->void
+        {
+            isActive = active;
+        });
+        return isActive;
+    }
+    
+    void BaseThread::addTask(const Task& task)
+    {
+        m_oTasks.operateVariable([=](std::vector<Task>& tasks)->void
+        {
+            tasks.push_back(task);
+        });
+        weekupThreadOnce();
+    }
+    
+    BaseThread::Task BaseThread::popTask()
+    {
+        Task task = nullptr;
+        m_oTasks.operateVariable([&](std::vector<Task>& tasks)->void
+        {
+            if (tasks.size() > 0)
+            {
+                task = tasks[0];
+                tasks.erase(tasks.begin());
+            }
+            
+        });
+        return task;
+    }
+    
+    int BaseThread::getTaskCount()
+    {
+        int size = 0;
+        m_oTasks.operateVariable([&](const std::vector<Task>& tasks)->void
+        {
+            size = tasks.size();
+        });
+        return size;
+    }
+    
+    bool BaseThread::isTasksEmpty()
+    {
+        bool isEmpty;
+        m_oTasks.operateVariable([&](const std::vector<Task>& tasks) -> void
+        {
+            isEmpty = tasks.empty();
+        });
+        return isEmpty;
+    }
+    
+    void BaseThread::innerThreadFunc()
+    {
+        std::mutex signalMutex;
+        std::unique_lock<std::mutex> signal(signalMutex);
+        Task task = nullptr;
+        while(true)
+        {
+            if (!m_bInited)
+            {
+                // 初始化后，不执行回调
+                m_bInited = true;
+                m_oSleepCondition.wait(signal, [&]()->bool
+                {
+                    bool isActive = !isTasksEmpty();
+                    if (!isActive)
+                    {
+                        m_oIsActive.operateVariable([](bool& active)->void
+                        {
+                            active = false;
+                        });
+                    }
+                    return isActive;
+                }); // 默认返回false
+            }
+            
+            task = popTask();
+            if (task)
+            {
+                std::cout<<"===execute task===="<<endl;
+                task();
+            }
+            
+            
+            if (m_bReadyTerminate)
+            {
+                // 终止
+                m_bIsTerminate = true;
+                break;
+            }
+            // 执行完一次，判断有没有需要继续执行的任务
+            m_oSleepCondition.wait(signal, [&]()->bool
+            {
+                bool isActive = !isTasksEmpty();
+                if (!isActive)
+                {
+                    m_oIsActive.operateVariable([](bool& active)->void
+                    {
+                        active = false;
+                    });
+                }
+                return isActive;
+            }); // 默认返回false
+            
+            
+        }
+    }
+    
+    
+    
+    
+}
