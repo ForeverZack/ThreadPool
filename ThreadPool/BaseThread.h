@@ -9,14 +9,16 @@ using namespace std;
 namespace Tool
 {
     // 注意事项
-    // 1，std::function可以绑定到全局函数或类的静态成员函数，如果要绑定到类的非静态成员函数，则需要使用std::bind。
-	// 2，对于需要多个线程访问的变量，需要加互斥锁（可以利用unique_lock来简化操作，unique_lock只传一个mutex，会自动上锁，析构时会自动解锁）
-	//explicit unique_lock(_Mutex& _Mtx)
-	//	: _Pmtx(&_Mtx), _Owns(false)
-	//{	// construct and lock
-	//	_Pmtx->lock();
-	//	_Owns = true;
-	//}
+    // 1. std::function可以绑定到全局函数或类的静态成员函数，如果要绑定到类的非静态成员函数，则需要使用std::bind。
+	// 2. 对于需要多个线程访问的变量，需要加互斥锁（可以利用unique_lock来简化操作，unique_lock只传一个mutex，会自动上锁，析构时会自动解锁）
+			//explicit unique_lock(_Mutex& _Mtx)
+			//	: _Pmtx(&_Mtx), _Owns(false)
+			//{	// construct and lock
+			//	_Pmtx->lock();
+			//	_Owns = true;
+			//}
+	// 3. join()阻塞当前线程，直至 *this 所标识的线程完成其执行 ,*this 所标识的线程的完成同步于从 join() 的成功返回。; 
+	//		detach()从thread对象分离执行的线程，允许执行独立地持续。一旦线程退出，则释放所有分配的资源。调用 detach 后， *this 不再占有任何线程。
     
     // 互斥变量
     template <typename T>

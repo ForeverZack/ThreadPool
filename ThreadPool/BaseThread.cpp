@@ -54,7 +54,10 @@ namespace Tool
             });
             weekupThreadOnce();
         }
-		m_pThread->join();
+		if (m_pThread->joinable())
+		{
+			m_pThread->join();
+		}
 		delete m_pThread;
 	}
     
