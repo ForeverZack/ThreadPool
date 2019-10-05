@@ -48,21 +48,15 @@ namespace Tool
         std::shared_ptr<BaseThread> sleep_thread;
         while(true)
         {
-            if(m_bReadyTerminate)
+            if(m_bReadyTerminate.getValue())
             {
-                m_oIsActive.operateVariable([](bool& active)->void
-                {
-                    active = false;
-                });
+				m_oIsActive = false;
                 m_bIsTerminate = true;
                 m_oSleepCondition.wait(signal);
             }
             if (!poolSleepCondition())
             {
-                m_oIsActive.operateVariable([](bool& active)->void
-                {
-                    active = false;
-                });
+				m_oIsActive = false;
                 m_oSleepCondition.wait(signal, m_pSleepCondition);
             }
             
@@ -82,13 +76,10 @@ namespace Tool
             // 2.回收空闲线程
             recoverSleepThreads();
             
-            if (m_bReadyTerminate)
+            if (m_bReadyTerminate.getValue())
             {
                 // 终止
-                m_oIsActive.operateVariable([](bool& active)->void
-                {
-                    active = false;
-                });
+				m_oIsActive = false;
                 m_bIsTerminate = true;
                 m_oSleepCondition.wait(signal);
             }

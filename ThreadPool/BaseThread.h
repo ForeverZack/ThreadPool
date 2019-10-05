@@ -23,6 +23,22 @@ namespace Tool
         ~MutexVariable() {}
     
     public:
+		// 赋值运算
+		T &operator=(T val)
+		{
+			m_oMutex.lock();
+			m_oVariable = val;
+			m_oMutex.unlock();
+			return m_oVariable;
+		}
+		T getValue()
+		{
+			T val;
+			m_oMutex.lock();
+			val = m_oVariable;
+			m_oMutex.unlock();
+			return val;
+		}
         // 操作变量
         void operateVariable(std::function<void(T&)> operateFunc = nullptr)
         {
@@ -96,9 +112,9 @@ namespace Tool
         // 是否激活
         MutexVariable<bool> m_oIsActive;
         // 终止信号
-        bool m_bReadyTerminate;
+		MutexVariable<bool> m_bReadyTerminate;
         // 是否终止
-        bool m_bIsTerminate;
+		MutexVariable<bool> m_bIsTerminate;
         // 线程id
         std::thread::id m_uThreadId;
     };

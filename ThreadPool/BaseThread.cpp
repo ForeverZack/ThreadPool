@@ -9,8 +9,8 @@ namespace Tool
         , m_bInited(false)
         , m_pSleepCondition(sleepCondition)
         , m_oIsActive(false)
-        , m_bIsTerminate(false)
-        , m_bReadyTerminate(false)
+		, m_bIsTerminate(false)
+		, m_bReadyTerminate(false)
     {
         if (autoCreate)
         {
@@ -18,6 +18,7 @@ namespace Tool
             m_pThread->detach();    // detach之后线程变为"非joinable"
             m_uThreadId = m_pThread->get_id();
         }
+
     }
     
     BaseThread::~BaseThread()
@@ -28,10 +29,7 @@ namespace Tool
     
     void BaseThread::weekupThreadOnce()
     {
-        m_oIsActive.operateVariable([](bool& active)->void
-        {
-            active = true;
-        });
+		m_oIsActive = true;
         m_oSleepCondition.notify_one();
     }
 
@@ -41,7 +39,7 @@ namespace Tool
         m_bReadyTerminate = true;
         // 等待线程执行完成
         while(getIsActive());
-        if (!m_bIsTerminate)
+        if (!m_bIsTerminate.getValue())
         {
             m_oTasks.operateVariable([](std::vector<Task>& tasks)->void
             {
@@ -49,16 +47,12 @@ namespace Tool
             });
             weekupThreadOnce();
         }
-    }
+		//while (getIsActive());
+	}
     
     bool BaseThread::getIsActive()
     {
-        bool isActive;
-        m_oIsActive.operateVariable([&](bool& active)->void
-        {
-            isActive = active;
-        });
-        return isActive;
+        return m_oIsActive.getValue();
     }
     
     void BaseThread::addTask(const Task& task)
@@ -80,7 +74,6 @@ namespace Tool
                 task = tasks[0];
                 tasks.erase(tasks.begin());
             }
-            
         });
         return task;
     }
@@ -121,10 +114,7 @@ namespace Tool
                     bool isActive = !isTasksEmpty();
                     if (!isActive)
                     {
-                        m_oIsActive.operateVariable([](bool& active)->void
-                        {
-                            active = false;
-                        });
+						m_oIsActive = false;
                     }
                     return isActive;
                 }); // 默认返回false
@@ -138,10 +128,9 @@ namespace Tool
             }
             
             
-            if (m_bReadyTerminate)
+            if (m_bReadyTerminate.getValue())
             {
                 // 终止
-                m_bIsTerminate = true;
                 break;
             }
             // 执行完一次，判断有没有需要继续执行的任务
@@ -150,16 +139,16 @@ namespace Tool
                 bool isActive = !isTasksEmpty();
                 if (!isActive)
                 {
-                    m_oIsActive.operateVariable([](bool& active)->void
-                    {
-                        active = false;
-                    });
+					m_oIsActive = false;
                 }
                 return isActive;
             }); // 默认返回false
             
             
         }
+
+		m_oIsActive = false;
+		m_bIsTerminate = true;
     }
     
     
