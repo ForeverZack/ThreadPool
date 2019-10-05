@@ -9,7 +9,14 @@ using namespace std;
 namespace Tool
 {
     // 注意事项
-    // std::function可以绑定到全局函数或类的静态成员函数，如果要绑定到类的非静态成员函数，则需要使用std::bind。
+    // 1，std::function可以绑定到全局函数或类的静态成员函数，如果要绑定到类的非静态成员函数，则需要使用std::bind。
+	// 2，对于需要多个线程访问的变量，需要加互斥锁（可以利用unique_lock来简化操作，unique_lock只传一个mutex，会自动上锁，析构时会自动解锁）
+	//explicit unique_lock(_Mutex& _Mtx)
+	//	: _Pmtx(&_Mtx), _Owns(false)
+	//{	// construct and lock
+	//	_Pmtx->lock();
+	//	_Owns = true;
+	//}
     
     // 互斥变量
     template <typename T>
@@ -26,35 +33,23 @@ namespace Tool
 		// 赋值运算
 		T &operator=(T val)
 		{
-			m_oMutex.lock();
+			std::unique_lock<std::mutex> lock(m_oMutex);
 			m_oVariable = val;
-			m_oMutex.unlock();
 			return m_oVariable;
 		}
 		T getValue()
 		{
-			T val;
-			m_oMutex.lock();
-			val = m_oVariable;
-			m_oMutex.unlock();
-			return val;
+			std::unique_lock<std::mutex> lock(m_oMutex);
+			return m_oVariable;
 		}
         // 操作变量
         void operateVariable(std::function<void(T&)> operateFunc = nullptr)
         {
-            try
-            {
-                m_oMutex.lock();
-                if (operateFunc)
-                {
-                    operateFunc(m_oVariable);
-                }
-                m_oMutex.unlock();
-            }
-            catch(exception ee)
-            {
-                
-            }
+			std::unique_lock<std::mutex> lock(m_oMutex);
+			if (operateFunc)
+			{
+				operateFunc(m_oVariable);
+			}
         }
         
     private:
@@ -86,6 +81,7 @@ namespace Tool
         // 是否处于激活状态
         bool getIsActive();
         
+		int m_customId;
     protected:
         // 弹出任务
         Task popTask();
@@ -100,7 +96,9 @@ namespace Tool
         
     protected:
         // 线程指针
-        std::shared_ptr<std::thread> m_pThread;
+        std::thread* m_pThread;
+		// 信号互斥变量
+		std::mutex m_SignalMutex;
         // 条件变量
         std::condition_variable m_oSleepCondition;
         // 任务函数

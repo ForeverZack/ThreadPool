@@ -22,7 +22,7 @@ namespace Tool
         // 线程工作分配
         void dispatchTask();
         // 获取空闲线程
-        std::shared_ptr<BaseThread> getSleepThread();
+        BaseThread* getSleepThread();
         // 回收空闲线程
         void recoverSleepThreads();
         // 判断是否可以休眠
@@ -32,11 +32,11 @@ namespace Tool
         // 最大允许线程数量
         unsigned int m_uMaxThreadCount;
         // 所有线程队列
-        std::vector<std::shared_ptr<BaseThread>> m_vThreads;
+        std::vector<BaseThread*> m_vThreads;
         // 空闲线程队列
-        std::vector<std::shared_ptr<BaseThread>> m_vSleepThreads;
+        std::vector<BaseThread*> m_vSleepThreads;
         // 繁忙线程队列
-        std::vector<std::shared_ptr<BaseThread>> m_vWeekupThreads;
+        std::vector<BaseThread*> m_vWeekupThreads;
 
     };
 }

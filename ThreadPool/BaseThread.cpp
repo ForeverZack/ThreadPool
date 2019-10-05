@@ -11,11 +11,12 @@ namespace Tool
         , m_oIsActive(false)
 		, m_bIsTerminate(false)
 		, m_bReadyTerminate(false)
+		, m_customId(-1)
     {
         if (autoCreate)
         {
-            m_pThread = make_shared<std::thread>(&BaseThread::innerThreadFunc, this); //new std::thread(&BaseThread::innerThreadFunc, this);
-            m_pThread->detach();    // detach之后线程变为"非joinable"
+            m_pThread = new std::thread(&BaseThread::innerThreadFunc, this); //new std::thread(&BaseThread::innerThreadFunc, this);
+            //m_pThread->detach();    // detach之后线程变为"非joinable"
             m_uThreadId = m_pThread->get_id();
         }
 
@@ -23,12 +24,18 @@ namespace Tool
     
     BaseThread::~BaseThread()
     {
-        std::cout<<"=============~BaseThread============"<<endl;
+        std::cout<<"=============~BaseThread======start======"<<m_customId<<endl;
+		if (m_customId == -1)
+		{
+			int iii=0;
+		}
         terminateThread();
-    }
+		std::cout << "=============~BaseThread======end======" << m_customId << endl;
+	}
     
     void BaseThread::weekupThreadOnce()
     {
+		std::unique_lock<std::mutex> signal(m_SignalMutex);
 		m_oIsActive = true;
         m_oSleepCondition.notify_one();
     }
@@ -47,7 +54,8 @@ namespace Tool
             });
             weekupThreadOnce();
         }
-		//while (getIsActive());
+		m_pThread->join();
+		delete m_pThread;
 	}
     
     bool BaseThread::getIsActive()
@@ -100,24 +108,20 @@ namespace Tool
     
     void BaseThread::innerThreadFunc()
     {
-        std::mutex signalMutex;
-        std::unique_lock<std::mutex> signal(signalMutex);
         Task task = nullptr;
+
         while(true)
         {
             if (!m_bInited)
             {
                 // 初始化后，不执行回调
                 m_bInited = true;
-                m_oSleepCondition.wait(signal, [&]()->bool
-                {
-                    bool isActive = !isTasksEmpty();
-                    if (!isActive)
-                    {
-						m_oIsActive = false;
-                    }
-                    return isActive;
-                }); // 默认返回false
+				m_oIsActive = !isTasksEmpty();
+				if (!m_oIsActive.getValue())
+				{
+					std::unique_lock<std::mutex> signal(m_SignalMutex);
+					m_oSleepCondition.wait(signal);// 默认返回false
+				}
             }
             
             task = popTask();
@@ -134,17 +138,12 @@ namespace Tool
                 break;
             }
             // 执行完一次，判断有没有需要继续执行的任务
-            m_oSleepCondition.wait(signal, [&]()->bool
-            {
-                bool isActive = !isTasksEmpty();
-                if (!isActive)
-                {
-					m_oIsActive = false;
-                }
-                return isActive;
-            }); // 默认返回false
-            
-            
+			m_oIsActive = !isTasksEmpty();
+			if (!m_oIsActive.getValue())
+			{
+				std::unique_lock<std::mutex> signal(m_SignalMutex);
+				m_oSleepCondition.wait(signal); // 默认返回false
+			}
         }
 
 		m_oIsActive = false;

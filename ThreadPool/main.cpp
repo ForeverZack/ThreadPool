@@ -81,7 +81,7 @@ int main(int argc, const char * argv[]) {
     
     std::cout << "Hello, World! eee\n";
     
-    
+	getchar();
 
     return 0;
 }

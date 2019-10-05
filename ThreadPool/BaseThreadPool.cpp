@@ -12,18 +12,23 @@ namespace Tool
         m_vWeekupThreads.reserve(m_uMaxThreadCount);
         
 
-        m_pThread = make_shared<std::thread>(&BaseThreadPool::dispatchTask, this);
-        m_pThread->detach();
+        m_pThread = new std::thread(&BaseThreadPool::dispatchTask, this);
+        //m_pThread->detach();
         m_uThreadId = m_pThread->get_id();
     }
     
     BaseThreadPool::~BaseThreadPool()
     {
-        std::cout<<"============BaseThreadPool::~BaseThreadPool========="<<m_vThreads.size()<<endl;
+        std::cout<<"============BaseThreadPool::~BaseThreadPool====start====="<<m_vThreads.size()<<endl;
+		for (int i = 0; i < m_vThreads.size(); ++i)
+		{
+			delete m_vThreads[i];
+		}
         m_vThreads.clear();
         m_vSleepThreads.clear();
         m_vWeekupThreads.clear();
-    }
+		std::cout << "============BaseThreadPool::~BaseThreadPool====end====="  << endl;
+	}
     
     void BaseThreadPool::test()
     {
@@ -35,32 +40,24 @@ namespace Tool
     
     bool BaseThreadPool::poolSleepCondition()
     {
-        // 缓存任务不为空，或者仍有线程在工作，则不休眠(返回true)
-        return !isTasksEmpty() || m_vWeekupThreads.size()!=0;
+        // 缓存任务不为空，或者仍有线程在工作，或者准备终结线程，则不休眠(返回true)
+        return !isTasksEmpty() || m_vWeekupThreads.size()!=0 || m_bReadyTerminate.getValue();
     }
 
     void BaseThreadPool::dispatchTask()
     {
-        std::mutex signalMutex;
-        std::unique_lock<std::mutex> signal(signalMutex);
-        
         Task new_task = nullptr;
-        std::shared_ptr<BaseThread> sleep_thread;
+        BaseThread* sleep_thread;
         while(true)
         {
-            if(m_bReadyTerminate.getValue())
-            {
-				m_oIsActive = false;
-                m_bIsTerminate = true;
-                m_oSleepCondition.wait(signal);
-            }
             if (!poolSleepCondition())
             {
 				m_oIsActive = false;
-                m_oSleepCondition.wait(signal, m_pSleepCondition);
+				std::unique_lock<std::mutex> signal(m_SignalMutex);
+				m_oSleepCondition.wait(signal, m_pSleepCondition);
             }
             
-            // 1.检查是否有没有缓存任务
+			// 1.检查是否有没有缓存任务
             if(!isTasksEmpty())
             {
                 // 检测是否有空闲线程，如果有就继续执行
@@ -73,24 +70,24 @@ namespace Tool
                 }
             }
             
-            // 2.回收空闲线程
+			// 2.回收空闲线程
             recoverSleepThreads();
             
             if (m_bReadyTerminate.getValue())
             {
-                // 终止
-				m_oIsActive = false;
-                m_bIsTerminate = true;
-                m_oSleepCondition.wait(signal);
+				break;
             }
-            
+			std::cout << "=======dispatchTask===444=====" << endl;
+
         }
-        
+
+		m_oIsActive = false;
+		m_bIsTerminate = true;
     }
     
-    std::shared_ptr<BaseThread> BaseThreadPool::getSleepThread()
+	BaseThread* BaseThreadPool::getSleepThread()
     {
-        std::shared_ptr<BaseThread> thread;
+        BaseThread* thread;
         if (m_vSleepThreads.size() > 0)
         {
             thread = m_vSleepThreads[0];
@@ -101,7 +98,8 @@ namespace Tool
         }
         else if(m_vThreads.size() < m_uMaxThreadCount)
         {
-            thread = make_shared<BaseThread>();
+            thread = new BaseThread();
+			thread->m_customId = m_vThreads.size();
             m_vThreads.push_back(thread);
             m_vWeekupThreads.push_back(thread);
             return thread;
@@ -112,7 +110,7 @@ namespace Tool
     
     void BaseThreadPool::recoverSleepThreads()
     {
-        std::shared_ptr<BaseThread> thread;
+        BaseThread* thread;
         for(int i=0; i<m_vWeekupThreads.size();)
         {
             thread = m_vWeekupThreads[i];
