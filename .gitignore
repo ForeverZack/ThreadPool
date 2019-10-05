@@ -1,0 +1,13 @@
+.svn
+.vs
+*.obj
+*.tlog
+*.pdb
+*.db
+*.opendb
+*.pdb
+*.ilk
+*.log
+*.idb
+Release
+Debug

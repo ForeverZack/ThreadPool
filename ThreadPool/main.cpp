@@ -63,7 +63,7 @@ int main(int argc, const char * argv[]) {
     
     
     int ccc = 0;
-    while(ccc < 10209)
+    while(ccc < 100)
     {
         {
             threadPool->addTask(std::bind(&counterFunc, ccc));
