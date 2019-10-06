@@ -11,7 +11,7 @@ namespace Tool
     class BaseThreadPool : public BaseThread
     {
     public:
-        BaseThreadPool(unsigned int maxCount);
+        BaseThreadPool(unsigned int maxCount, int customPoolId = -1);
         ~BaseThreadPool();
     
     public:
@@ -29,6 +29,7 @@ namespace Tool
         bool poolSleepCondition();
         
     protected:
+        // 以下变量都只有异步线程赋值操作，所以不需要加锁
         // 最大允许线程数量
         unsigned int m_uMaxThreadCount;
         // 所有线程队列

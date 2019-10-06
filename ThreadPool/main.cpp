@@ -63,7 +63,7 @@ int main(int argc, const char * argv[]) {
     
     
     int ccc = 0;
-    while(ccc < 100)
+    while(ccc < 10239)
     {
         {
             threadPool->addTask(std::bind(&counterFunc, ccc));
@@ -74,7 +74,7 @@ int main(int argc, const char * argv[]) {
 //    delete threadPool;
     
     std::cout << "Hello, World!\n";
-    while(threadPool->getIsActive());
+    while(threadPool->getIsActive()) ;
     
     threadPool->test();
     delete threadPool;

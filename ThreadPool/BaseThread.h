@@ -4,6 +4,7 @@
 #include <mutex>
 #include <memory>
 #include <vector>
+#include <queue>
 using namespace std;
 
 namespace Tool
@@ -19,6 +20,7 @@ namespace Tool
 			//}
 	// 3. join()阻塞当前线程，直至 *this 所标识的线程完成其执行 ,*this 所标识的线程的完成同步于从 join() 的成功返回。; 
 	//		detach()从thread对象分离执行的线程，允许执行独立地持续。一旦线程退出，则释放所有分配的资源。调用 detach 后， *this 不再占有任何线程。
+    // 4. 对于m_bIsActive，应该放在condition_variable.wait的第二个回调函数中赋值，这样才能得到正确的线程激活状态
     
     // 互斥变量
     template <typename T>
@@ -33,7 +35,7 @@ namespace Tool
     
     public:
 		// 赋值运算
-		T &operator=(T val)
+		T &operator=(const T& val)
 		{
 			std::unique_lock<std::mutex> lock(m_oMutex);
 			m_oVariable = val;
@@ -44,19 +46,57 @@ namespace Tool
 			std::unique_lock<std::mutex> lock(m_oMutex);
 			return m_oVariable;
 		}
-        // 操作变量
-        void operateVariable(std::function<void(T&)> operateFunc = nullptr)
-        {
-			std::unique_lock<std::mutex> lock(m_oMutex);
-			if (operateFunc)
-			{
-				operateFunc(m_oVariable);
-			}
-        }
         
     private:
         // 变量
         T m_oVariable;
+        // 互斥锁
+        std::mutex m_oMutex;
+    };
+    
+    // 互斥队列
+    template <typename T>
+    class MutexQueue
+    {
+    public:
+        MutexQueue() {}
+        ~MutexQueue() {}
+    
+    public:
+        T pop()
+        {
+            std::unique_lock<std::mutex> lock(m_oMutex);
+            T val = m_vQueue.front();
+            m_vQueue.pop();
+            return val;
+        }
+        void push(const T& val)
+        {
+            std::unique_lock<std::mutex> lock(m_oMutex);
+            m_vQueue.push(val);
+        }
+        size_t size()
+        {
+            std::unique_lock<std::mutex> lock(m_oMutex);
+            return m_vQueue.size();
+        }
+        bool empty()
+        {
+            std::unique_lock<std::mutex> lock(m_oMutex);
+            return m_vQueue.empty();
+        }
+        void clear()
+        {
+            std::unique_lock<std::mutex> lock(m_oMutex);
+            while(!m_vQueue.empty())
+            {
+                m_vQueue.pop();
+            }
+        }
+        
+    private:
+        // 队列
+        std::queue<T> m_vQueue;
         // 互斥锁
         std::mutex m_oMutex;
     };
@@ -70,7 +110,7 @@ namespace Tool
         typedef std::function<bool()> SleepCondition;
         
     public:
-        BaseThread(SleepCondition sleepCondition = nullptr, bool autoCreate = true);
+        BaseThread(int customThreadId = -1, SleepCondition sleepCondition = nullptr, bool autoCreate = true);
         virtual ~BaseThread();
     
     public:
@@ -82,15 +122,16 @@ namespace Tool
         void terminateThread();
         // 是否处于激活状态
         bool getIsActive();
-        
-		int m_customId;
+
     protected:
         // 弹出任务
         Task popTask();
         // 任务数量
-        int getTaskCount();
+        size_t getTaskCount();
         // 任务池是否为空
         bool isTasksEmpty();
+        // 默认休眠条件
+        bool defaultSleepCondition();
         
     private:
         // 线程函数
@@ -104,18 +145,20 @@ namespace Tool
         // 条件变量
         std::condition_variable m_oSleepCondition;
         // 任务函数
-        MutexVariable<std::vector<Task>> m_oTasks;
+        MutexQueue<Task> m_oTasks;
         // 休眠条件函数
         SleepCondition m_pSleepCondition;
         // 是否初始化
         bool m_bInited;
         // 是否激活
-        MutexVariable<bool> m_oIsActive;
+        MutexVariable<bool> m_bIsActive;
         // 终止信号
 		MutexVariable<bool> m_bReadyTerminate;
         // 是否终止
 		MutexVariable<bool> m_bIsTerminate;
         // 线程id
         std::thread::id m_uThreadId;
+        // 自定义线程id
+        int m_iCustomThreadId;
     };
 }
