@@ -1,7 +1,7 @@
 #include "BaseThreadPool.h"
 #include <iostream>
 
-namespace Tool
+namespace common
 {
     BaseThreadPool::BaseThreadPool(unsigned int maxCount, int customPoolId/* = -1*/)
         : BaseThread(customPoolId, std::bind(&BaseThreadPool::poolSleepCondition, this), false)
@@ -19,7 +19,6 @@ namespace Tool
     
     BaseThreadPool::~BaseThreadPool()
     {
-        std::cout<<"============BaseThreadPool::~BaseThreadPool====start====="<<m_vThreads.size()<<endl;
 		for (int i = 0; i < m_vThreads.size(); ++i)
 		{
 			delete m_vThreads[i];
@@ -27,7 +26,6 @@ namespace Tool
         m_vThreads.clear();
         m_vSleepThreads.clear();
         m_vWeekupThreads.clear();
-		std::cout << "============BaseThreadPool::~BaseThreadPool====end====="  << endl;
 	}
     
     void BaseThreadPool::test()
@@ -73,7 +71,7 @@ namespace Tool
 			// 2.回收空闲线程
             recoverSleepThreads();
             
-            if (m_bReadyTerminate.getValue())
+            if (m_bReadyTerminate==true)
             {
 				break;
             }

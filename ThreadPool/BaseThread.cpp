@@ -1,7 +1,6 @@
 #include "BaseThread.h"
-#include <iostream>
 
-namespace Tool
+namespace common
 {
     
     BaseThread::BaseThread(int customThreadId/* = -1*/, SleepCondition sleepCondition/* = nullptr*/, bool autoCreate/* = true*/)
@@ -28,9 +27,8 @@ namespace Tool
     
     BaseThread::~BaseThread()
     {
-//        std::cout<<"=============~BaseThread======start======" << m_iCustomThreadId <<endl;
+        // 结束进程
         terminateThread();
-//		std::cout << "=============~BaseThread======end======" << m_iCustomThreadId << endl;
 	}
     
     void BaseThread::weekupThreadOnce()
@@ -46,7 +44,7 @@ namespace Tool
         m_bReadyTerminate = true;
         // 等待线程执行完成
         while(getIsActive());
-        if (!m_bIsTerminate.getValue())
+        if (m_bIsTerminate==false)
         {
             m_oTasks.clear();
             weekupThreadOnce();
@@ -61,7 +59,7 @@ namespace Tool
     
     bool BaseThread::getIsActive()
     {
-        return m_bIsActive.getValue();
+        return m_bIsActive == true;
     }
     
     void BaseThread::addTask(const Task& task)
@@ -95,7 +93,7 @@ namespace Tool
     bool BaseThread::defaultSleepCondition()
     {
         // 缓存任务不为空，或者准备终结线程，则不休眠(返回true)
-        bool isActive = !isTasksEmpty() || m_bReadyTerminate.getValue();
+        bool isActive = !isTasksEmpty() || m_bReadyTerminate==true;
         m_bIsActive = isActive;
         return isActive;
     }
@@ -119,12 +117,11 @@ namespace Tool
             task = popTask();
             if (task)
             {
-//                std::cout<<"===execute task===="<<endl;
                 task();
             }
             
             
-            if (m_bReadyTerminate.getValue())
+            if (m_bReadyTerminate==true)
             {
                 // 终止
                 break;

@@ -5,7 +5,7 @@
 #include "BaseThread.h"
 using namespace std;
 
-namespace Tool
+namespace common
 {
 
     class BaseThreadPool : public BaseThread
@@ -15,7 +15,7 @@ namespace Tool
         ~BaseThreadPool();
     
     public:
-        //
+        // 打印线程数量
         void test();
         
     private:

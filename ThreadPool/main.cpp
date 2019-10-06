@@ -59,7 +59,7 @@ void counterFunc(int a)
 
 int main(int argc, const char * argv[]) {
     // insert code here...
-    Tool::BaseThreadPool* threadPool = new Tool::BaseThreadPool(50);
+    common::BaseThreadPool* threadPool = new common::BaseThreadPool(50);
     
     
     int ccc = 0;

@@ -7,7 +7,7 @@
 #include <queue>
 using namespace std;
 
-namespace Tool
+namespace common
 {
     // 注意事项
     // 1. std::function可以绑定到全局函数或类的静态成员函数，如果要绑定到类的非静态成员函数，则需要使用std::bind。
@@ -41,6 +41,11 @@ namespace Tool
 			m_oVariable = val;
 			return m_oVariable;
 		}
+        bool operator==(const T& val)
+        {
+            std::unique_lock<std::mutex> lock(m_oMutex);
+            return m_oVariable == val;
+        }
 		T getValue()
 		{
 			std::unique_lock<std::mutex> lock(m_oMutex);
@@ -53,6 +58,7 @@ namespace Tool
         // 互斥锁
         std::mutex m_oMutex;
     };
+    
     
     // 互斥队列
     template <typename T>
